@@ -1,0 +1,47 @@
+{
+  "name": "Calculate Percentage",
+  "description": "Calculate the percentage of a value relative to a total, with validation and rounding.",
+  "graph": {
+    "nodes": [
+      {"id": "check", "capability": "std.logic.not_equal", "x": 300, "y": 160,
+       "inputs": {"a": {"from": "run", "path": "total"}, "b": {"from": "manual", "value": 0}}},
+      {"id": "valid", "capability": "flow.if", "x": 540, "y": 160,
+       "params": {"condition": "{{ node.check.result }} == true"}},
+      {"id": "divide", "capability": "std.number.divide", "x": 780, "y": 80,
+       "inputs": {"a": {"from": "run", "path": "value"}, "b": {"from": "run", "path": "total"}}},
+      {"id": "multiply", "capability": "std.number.multiply", "x": 1020, "y": 80,
+       "inputs": {"a": {"from": "node", "node": "divide", "port": "result"}, "b": {"from": "manual", "value": 100}}},
+      {"id": "round", "capability": "std.number.round", "x": 1260, "y": 80,
+       "inputs": {"value": {"from": "node", "node": "multiply", "port": "result"}, "precision": {"from": "run", "path": "precision"}}},
+      {"id": "error", "capability": "std.error.raise", "x": 780, "y": 300,
+       "inputs": {"code": {"from": "manual", "value": "invalid_total"}, "message": {"from": "manual", "value": "Total must be nonzero"}}}
+    ],
+    "edges": [
+      {"from": "check", "to": "valid"},
+      {"from": "valid", "to": "divide", "when": "true"},
+      {"from": "divide", "to": "multiply"},
+      {"from": "multiply", "to": "round"},
+      {"from": "valid", "to": "error", "when": "false"}
+    ],
+    "layout": {"trigger": {"x": 60, "y": 160}, "triggerEdges": ["check"]},
+    "contract": {
+      "capabilityId": "wf.std.number.calculate_percentage",
+      "version": "1.0.0",
+      "level": "L1",
+      "category": "Numbers",
+      "permissions": [],
+      "inputs": [
+        {"name": "value", "type": "number", "description": "The part"},
+        {"name": "total", "type": "number", "description": "The whole (not zero)"},
+        {"name": "precision", "type": "integer", "default": 2, "description": "Decimal places"}
+      ],
+      "outputs": [{"name": "percentage", "type": "number", "value": "{{ node.round.result }}", "description": "value / total × 100, rounded"}],
+      "tests": [
+        {"name": "25 of 200", "input": {"value": 25, "total": 200}, "expect": {"percentage": 12.5}},
+        {"name": "one third, 2 places", "input": {"value": 1, "total": 3}, "expect": {"percentage": 33.33}},
+        {"name": "decimals and precision 0", "input": {"value": 2.5, "total": 4, "precision": 0}, "expect": {"percentage": 63}},
+        {"name": "zero total is an error", "input": {"value": 5, "total": 0}, "expect": {"status": "failed"}}
+      ]
+    }
+  }
+}

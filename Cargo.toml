@@ -1,0 +1,13 @@
+[package]
+name = "orqen-stdlib"
+version = "0.1.0"
+edition = "2024"
+description = "Orqen standard library: deterministic, typed atomic operations (text, numbers, logic, collections, objects, types, errors) and the first published micro-workflows"
+license = "MIT"
+repository = "https://github.com/momen-suleman/orqen-stdlib"
+readme = "README.md"
+rust-version = "1.85"
+
+[dependencies]
+serde_json = "1.0"
+unicode-normalization = "0.1"

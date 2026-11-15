@@ -1,0 +1,33 @@
+{
+  "name": "Normalize Search Query",
+  "description": "Normalize a search query for consistent matching: the published Normalize Input workflow, then lowercase and collapse whitespace.",
+  "graph": {
+    "nodes": [
+      {"id": "normalize", "capability": "wf.std.text.normalize_input", "x": 300, "y": 160,
+       "params": {"version": "1.0.0"},
+       "inputs": {"value": {"from": "run", "path": "query"}}},
+      {"id": "lower", "capability": "std.text.lowercase", "x": 560, "y": 160,
+       "inputs": {"text": {"from": "node", "node": "normalize", "port": "result"}}},
+      {"id": "collapse", "capability": "std.text.collapse_whitespace", "x": 820, "y": 160,
+       "inputs": {"text": {"from": "node", "node": "lower", "port": "result"}}}
+    ],
+    "edges": [
+      {"from": "normalize", "to": "lower"},
+      {"from": "lower", "to": "collapse"}
+    ],
+    "layout": {"trigger": {"x": 60, "y": 160}, "triggerEdges": ["normalize"]},
+    "contract": {
+      "capabilityId": "wf.std.text.normalize_search_query",
+      "version": "1.0.0",
+      "level": "L2",
+      "category": "Text",
+      "permissions": [],
+      "inputs": [{"name": "query", "type": "text", "description": "Search query as typed"}],
+      "outputs": [{"name": "normalized_query", "type": "text", "value": "{{ node.collapse.result }}", "description": "Query ready for matching"}],
+      "tests": [
+        {"name": "mixed case and spacing", "input": {"query": "  Orqen   WORKFLOW\tPlatform \r\n"}, "expect": {"normalized_query": "orqen workflow platform"}},
+        {"name": "unicode", "input": {"query": "CAFÉ  Menu"}, "expect": {"normalized_query": "café menu"}}
+      ]
+    }
+  }
+}

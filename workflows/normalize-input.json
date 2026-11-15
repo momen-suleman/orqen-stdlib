@@ -1,0 +1,33 @@
+{
+  "name": "Normalize Input",
+  "description": "Normalize text input: Unicode normalization (NFC), LF line endings, then trim surrounding whitespace.",
+  "graph": {
+    "nodes": [
+      {"id": "unicode", "capability": "std.text.normalize_unicode", "x": 300, "y": 160,
+       "inputs": {"text": {"from": "run", "path": "value"}}},
+      {"id": "lines", "capability": "std.text.normalize_line_endings", "x": 560, "y": 160,
+       "inputs": {"text": {"from": "node", "node": "unicode", "port": "result"}}},
+      {"id": "trim", "capability": "std.text.trim", "x": 820, "y": 160,
+       "inputs": {"text": {"from": "node", "node": "lines", "port": "result"}}}
+    ],
+    "edges": [
+      {"from": "unicode", "to": "lines"},
+      {"from": "lines", "to": "trim"}
+    ],
+    "layout": {"trigger": {"x": 60, "y": 160}, "triggerEdges": ["unicode"]},
+    "contract": {
+      "capabilityId": "wf.std.text.normalize_input",
+      "version": "1.0.0",
+      "level": "L1",
+      "category": "Text",
+      "permissions": [],
+      "inputs": [{"name": "value", "type": "text", "description": "Text to normalize"}],
+      "outputs": [{"name": "result", "type": "text", "value": "{{ node.trim.result }}", "description": "Normalized text"}],
+      "tests": [
+        {"name": "trims and unifies line endings", "input": {"value": "  Hello\r\nWorld \r"}, "expect": {"result": "Hello\nWorld"}},
+        {"name": "composes accents (NFC)", "input": {"value": " Café "}, "expect": {"result": "Café"}},
+        {"name": "empty text is refused", "input": {"value": ""}, "expect": {"status": "failed"}}
+      ]
+    }
+  }
+}

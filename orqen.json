@@ -1,0 +1,9 @@
+{
+  "name": "Orqen Standard Library",
+  "description": "Deterministic typed operations (std.text, std.number, std.logic, std.collection, std.object, std.type, std.error) built into the Orqen engine, and the first published micro-workflows built from them.",
+  "version": "0.1.0",
+  "orqen": ">=0.10.0",
+  "packages": {"std": ">=0.1.0"},
+  "homepage": "https://github.com/momen-suleman/orqen-stdlib",
+  "tags": ["stdlib", "text", "numbers", "logic", "collections"]
+}
