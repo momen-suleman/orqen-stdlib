@@ -174,6 +174,48 @@ fn object_keys(a: &Args) -> Result<Outputs, OpError> {
     result(Value::Array(keys))
 }
 
+fn object_values(a: &Args) -> Result<Outputs, OpError> {
+    let values = a
+        .object("object")
+        .map(|m| m.values().cloned().collect())
+        .unwrap_or_default();
+    result(Value::Array(values))
+}
+
+/// An object from a list of keys and a list of values at the same positions.
+fn object_from_lists(a: &Args) -> Result<Outputs, OpError> {
+    let (keys, values) = (a.list("keys"), a.list("values"));
+    if keys.len() != values.len() {
+        return Err(OpError::new(
+            "invalid_input",
+            format!(
+                "{} keys but {} values; the lists must be the same length",
+                keys.len(),
+                values.len()
+            ),
+        ));
+    }
+    let mut map = serde_json::Map::new();
+    for (i, (key, value)) in keys.iter().zip(values).enumerate() {
+        let Some(key) = key.as_str().filter(|k| !k.is_empty()) else {
+            return Err(OpError::new(
+                "invalid_input",
+                format!(
+                    "Key {i} is not a non-empty text: {}",
+                    crate::truncate_json(key)
+                ),
+            ));
+        };
+        if map.insert(key.to_owned(), value.clone()).is_some() {
+            return Err(OpError::new(
+                "invalid_input",
+                format!("Key '{key}' appears twice"),
+            ));
+        }
+    }
+    result(Value::Object(map))
+}
+
 fn object_set(a: &Args) -> Result<Outputs, OpError> {
     let mut map = a.object("object").cloned().unwrap_or_default();
     let key = a.text("key");
@@ -299,6 +341,31 @@ pub(crate) static OPERATIONS: &[Operation] = &[
         outputs: &[port("result", Type::List, "Keys, as text")],
         errors: &[],
         run: object_keys,
+    },
+    Operation {
+        id: "std.object.values",
+        name: "Values",
+        description: "The values of an object, in key order",
+        category: "Objects",
+        version: crate::VERSION,
+        inputs: &[port("object", Type::Object, "The object")],
+        outputs: &[port("result", Type::List, "Values, in key order")],
+        errors: &[],
+        run: object_values,
+    },
+    Operation {
+        id: "std.object.from_lists",
+        name: "From lists",
+        description: "An object pairing each key with the value at the same position",
+        category: "Objects",
+        version: crate::VERSION,
+        inputs: &[
+            port("keys", Type::List, "Keys (texts, no repeats)"),
+            port("values", Type::List, "Values, same length"),
+        ],
+        outputs: &[port("result", Type::Object, "The object")],
+        errors: &["invalid_input"],
+        run: object_from_lists,
     },
     Operation {
         id: "std.object.set",
@@ -430,6 +497,25 @@ mod tests {
             "missing_key"
         );
         assert_eq!(res("std.object.keys", json!({"object": o})), json!(["a"]));
+        assert_eq!(
+            res("std.object.values", json!({"object": {"b": 2, "a": 1}})),
+            json!([1, 2]),
+            "key order"
+        );
+        assert_eq!(
+            res(
+                "std.object.from_lists",
+                json!({"keys": ["x", "y"], "values": [1, [2]]})
+            ),
+            json!({"x": 1, "y": [2]})
+        );
+        for bad in [
+            json!({"keys": ["x"], "values": []}),
+            json!({"keys": ["x", "x"], "values": [1, 2]}),
+            json!({"keys": [1], "values": [1]}),
+        ] {
+            assert_eq!(code("std.object.from_lists", bad), "invalid_input");
+        }
         assert_eq!(
             res(
                 "std.object.set",

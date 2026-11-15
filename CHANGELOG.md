@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0
+
+- `std.object.values`: the values of an object, in key order.
+- `std.object.from_lists`: an object from a list of keys and a list of
+  values at the same positions (lengths must match; keys are unique texts).
+- `std.logic.choose`: the `then` value when a condition is true, otherwise
+  the `else` value.
+
 ## 0.5.0
 
 - `std.collection.sort`: a list of only numbers or only texts in order;

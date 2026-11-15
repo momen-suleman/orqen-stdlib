@@ -91,6 +91,16 @@ const OR_INPUTS: &[crate::Port] = &[
     opt("f", Type::Boolean, "false", "Optional"),
 ];
 
+/// One of two values, picked by a condition.
+fn choose(a: &Args) -> Result<Outputs, OpError> {
+    let picked = if a.boolean("condition") {
+        "then"
+    } else {
+        "else"
+    };
+    result(a.any(picked).clone())
+}
+
 pub(crate) static OPERATIONS: &[Operation] = &[
     Operation {
         id: "std.logic.equal",
@@ -169,10 +179,38 @@ pub(crate) static OPERATIONS: &[Operation] = &[
         errors: &[],
         run: not,
     },
+    Operation {
+        id: "std.logic.choose",
+        name: "Choose",
+        description: "The then value when the condition is true, otherwise the else value",
+        category: "Logic",
+        version: crate::VERSION,
+        inputs: &[
+            port("condition", Type::Boolean, "The condition"),
+            port("then", Type::Any, "Value when true"),
+            port("else", Type::Any, "Value when false"),
+        ],
+        outputs: &[port("result", Type::Any, "The chosen value")],
+        errors: &[],
+        run: choose,
+    },
 ];
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn choosing() {
+        use serde_json::json;
+        let pick = |c: bool| {
+            crate::res(
+                "std.logic.choose",
+                json!({"condition": c, "then": "accepted", "else": ["x"]}),
+            )
+        };
+        assert_eq!(pick(true), "accepted");
+        assert_eq!(pick(false), json!(["x"]));
+    }
+
     use crate::{code, res};
     use serde_json::json;
 
