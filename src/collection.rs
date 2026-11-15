@@ -15,7 +15,8 @@ fn position(index: i64, len: usize) -> Option<usize> {
 }
 
 /// The largest number and its position; the first one wins a tie, so the
-/// result is deterministic.
+/// result is deterministic. An empty list gives `default` at index -1 when
+/// a default is set, and fails otherwise.
 fn max(a: &Args) -> Result<Outputs, OpError> {
     let mut best: Option<(usize, crate::number::Num)> = None;
     for (i, item) in a.list("values").iter().enumerate() {
@@ -37,9 +38,12 @@ fn max(a: &Args) -> Result<Outputs, OpError> {
             best = Some((i, n));
         }
     }
-    let (index, value) =
-        best.ok_or_else(|| OpError::new("empty_list", "The list has no numbers"))?;
-    let mut out = crate::one("index", Value::from(index as i64));
+    let (index, value) = match best {
+        Some((i, n)) => (i as i64, n),
+        None if a.has("default") => (-1, a.number("default")),
+        None => return Err(OpError::new("empty_list", "The list has no numbers")),
+    };
+    let mut out = crate::one("index", Value::from(index));
     out.insert(
         "result".to_owned(),
         match value {
@@ -252,7 +256,15 @@ pub(crate) static OPERATIONS: &[Operation] = &[
         description: "The largest number in a list and its position (the first one on a tie)",
         category: "Collections",
         version: crate::VERSION,
-        inputs: &[port("values", Type::List, "Numbers")],
+        inputs: &[
+            port("values", Type::List, "Numbers"),
+            opt(
+                "default",
+                Type::Number,
+                "null",
+                "Result for an empty list (index -1) instead of failing",
+            ),
+        ],
         outputs: &[
             port("result", Type::Number, "The largest number"),
             port("index", Type::Integer, "Its position (0 is the first)"),
@@ -408,6 +420,13 @@ mod tests {
             code("std.collection.max", json!({"values": []})),
             "empty_list"
         );
+        let out = crate::run("std.collection.max", json!({"values": [], "default": 0})).unwrap();
+        assert_eq!(
+            (out["result"].clone(), out["index"].clone()),
+            (json!(0), json!(-1))
+        );
+        let out = crate::run("std.collection.max", json!({"values": [3], "default": 0})).unwrap();
+        assert_eq!(out["result"], 3, "default only applies to an empty list");
         assert_eq!(
             code("std.collection.max", json!({"values": [1, "x"]})),
             "invalid_type"

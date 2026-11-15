@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.0
+
+- `std.collection.max` takes an optional `default`: an empty list then gives
+  `result` = default and `index` = -1 instead of failing with `empty_list`.
+
 ## 0.6.0
 
 - `std.object.values`: the values of an object, in key order.
