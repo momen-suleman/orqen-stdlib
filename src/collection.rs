@@ -50,6 +50,46 @@ fn max(a: &Args) -> Result<Outputs, OpError> {
     Ok(out)
 }
 
+/// Numbers or texts in order; a stable sort, so equal items keep their order.
+fn sort(a: &Args) -> Result<Outputs, OpError> {
+    let list = a.list("list");
+    let mut items: Vec<Value> = list.to_vec();
+    if items
+        .iter()
+        .all(|v| crate::number::Num::from_json(v).is_some())
+    {
+        items.sort_by(|x, y| {
+            let (x, y) = (
+                crate::number::Num::from_json(x).map_or(0.0, |n| n.as_f64()),
+                crate::number::Num::from_json(y).map_or(0.0, |n| n.as_f64()),
+            );
+            x.total_cmp(&y)
+        });
+    } else if items.iter().all(Value::is_string) {
+        items.sort_by(|x, y| x.as_str().cmp(&y.as_str()));
+    } else {
+        return Err(OpError::new(
+            "invalid_type",
+            "Sort needs a list of only numbers or only texts",
+        ));
+    }
+    if a.boolean("descending") {
+        // Reverse keeps a tie's later item first; restore input order for ties.
+        items.reverse();
+        let key = |v: &Value| v.clone();
+        let mut i = 0;
+        while i < items.len() {
+            let mut j = i + 1;
+            while j < items.len() && key(&items[j]) == key(&items[i]) {
+                j += 1;
+            }
+            items[i..j].reverse();
+            i = j;
+        }
+    }
+    result(Value::Array(items))
+}
+
 fn get(a: &Args) -> Result<Outputs, OpError> {
     let list = a.list("list");
     match position(a.integer("index"), list.len()) {
@@ -179,6 +219,20 @@ pub(crate) static OPERATIONS: &[Operation] = &[
         run: max,
     },
     Operation {
+        id: "std.collection.sort",
+        name: "Sort",
+        description: "Numbers or texts in order (ascending unless descending is true)",
+        category: "Collections",
+        version: crate::VERSION,
+        inputs: &[
+            LIST,
+            opt("descending", Type::Boolean, "false", "Largest first"),
+        ],
+        outputs: &[port("result", Type::List, "The sorted list")],
+        errors: &["invalid_type"],
+        run: sort,
+    },
+    Operation {
         id: "std.collection.count",
         name: "Count",
         description: "Number of items in a list",
@@ -289,6 +343,30 @@ mod tests {
         );
         assert_eq!(
             code("std.collection.max", json!({"values": [1, "x"]})),
+            "invalid_type"
+        );
+    }
+
+    #[test]
+    fn sorting() {
+        assert_eq!(
+            res("std.collection.sort", json!({"list": [3, 1.5, 9, -2]})),
+            json!([-2, 1.5, 3, 9])
+        );
+        assert_eq!(
+            res(
+                "std.collection.sort",
+                json!({"list": [2, 9, 1, 9], "descending": true})
+            ),
+            json!([9, 9, 2, 1])
+        );
+        assert_eq!(
+            res("std.collection.sort", json!({"list": ["b", "a"]})),
+            json!(["a", "b"])
+        );
+        assert_eq!(res("std.collection.sort", json!({"list": []})), json!([]));
+        assert_eq!(
+            code("std.collection.sort", json!({"list": [1, "a"]})),
             "invalid_type"
         );
     }

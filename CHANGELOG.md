@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0
+
+- `std.collection.sort`: a list of only numbers or only texts in order;
+  `descending` puts the largest first; mixed lists are `invalid_type`.
+
 ## 0.4.0
 
 - `std.collection.max`: the largest number in a list (`result`) and its
