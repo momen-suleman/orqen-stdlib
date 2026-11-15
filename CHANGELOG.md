@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+
+- `std.collection.max`: the largest number in a list (`result`) and its
+  position (`index`); the first one wins a tie; an empty list is `empty_list`.
+
 ## 0.3.0
 
 - `std.number.sum`: add up a list of numbers; exact for integers (overflow

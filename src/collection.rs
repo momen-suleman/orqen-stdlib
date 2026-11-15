@@ -14,6 +14,42 @@ fn position(index: i64, len: usize) -> Option<usize> {
     (0..len).contains(&i).then_some(i as usize)
 }
 
+/// The largest number and its position; the first one wins a tie, so the
+/// result is deterministic.
+fn max(a: &Args) -> Result<Outputs, OpError> {
+    let mut best: Option<(usize, crate::number::Num)> = None;
+    for (i, item) in a.list("values").iter().enumerate() {
+        let n = crate::number::Num::from_json(item).ok_or_else(|| {
+            OpError::new(
+                "invalid_type",
+                format!(
+                    "Item {i} of 'values' is not a number: {}",
+                    crate::truncate_json(item)
+                ),
+            )
+        })?;
+        let larger = match (&best, n) {
+            (None, _) => true,
+            (Some((_, crate::number::Num::Int(b))), crate::number::Num::Int(x)) => x > *b,
+            (Some((_, b)), x) => x.as_f64() > b.as_f64(),
+        };
+        if larger {
+            best = Some((i, n));
+        }
+    }
+    let (index, value) =
+        best.ok_or_else(|| OpError::new("empty_list", "The list has no numbers"))?;
+    let mut out = crate::one("index", Value::from(index as i64));
+    out.insert(
+        "result".to_owned(),
+        match value {
+            crate::number::Num::Int(i) => Value::from(i),
+            crate::number::Num::Dec(f) => crate::json_number(f).unwrap_or(Value::Null),
+        },
+    );
+    Ok(out)
+}
+
 fn get(a: &Args) -> Result<Outputs, OpError> {
     let list = a.list("list");
     match position(a.integer("index"), list.len()) {
@@ -129,6 +165,20 @@ pub(crate) static OPERATIONS: &[Operation] = &[
         run: get,
     },
     Operation {
+        id: "std.collection.max",
+        name: "Largest",
+        description: "The largest number in a list and its position (the first one on a tie)",
+        category: "Collections",
+        version: crate::VERSION,
+        inputs: &[port("values", Type::List, "Numbers")],
+        outputs: &[
+            port("result", Type::Number, "The largest number"),
+            port("index", Type::Integer, "Its position (0 is the first)"),
+        ],
+        errors: &["empty_list"],
+        run: max,
+    },
+    Operation {
         id: "std.collection.count",
         name: "Count",
         description: "Number of items in a list",
@@ -217,6 +267,31 @@ pub(crate) static OPERATIONS: &[Operation] = &[
 mod tests {
     use crate::{code, res};
     use serde_json::json;
+
+    #[test]
+    fn largest() {
+        let out = crate::run("std.collection.max", json!({"values": [0, 5, 2, 5]})).unwrap();
+        assert_eq!(
+            (out["result"].clone(), out["index"].clone()),
+            (json!(5), json!(1)),
+            "first max wins"
+        );
+        let out = crate::run("std.collection.max", json!({"values": [1, 2.5, -3]})).unwrap();
+        assert_eq!(
+            (out["result"].clone(), out["index"].clone()),
+            (json!(2.5), json!(1))
+        );
+        let out = crate::run("std.collection.max", json!({"values": [-4, -2]})).unwrap();
+        assert_eq!(out["index"], 1);
+        assert_eq!(
+            code("std.collection.max", json!({"values": []})),
+            "empty_list"
+        );
+        assert_eq!(
+            code("std.collection.max", json!({"values": [1, "x"]})),
+            "invalid_type"
+        );
+    }
 
     #[test]
     fn lists() {
