@@ -5,7 +5,7 @@ Orqen workflows are built from, and the first published micro-workflows
 built from them.
 
 ```text
-std.text.*        trim, lowercase, uppercase, split, join, replace, contains, length,
+std.text.*        trim, lowercase, uppercase, split, join, replace, contains, contains_any, length,
                   normalize_unicode, normalize_line_endings, collapse_whitespace
 std.number.*      add, subtract, multiply, divide, round
 std.logic.*       equal, not_equal, greater_than, less_than, and, or, not

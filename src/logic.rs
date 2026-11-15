@@ -2,7 +2,7 @@
 use serde_json::Value;
 
 use crate::number::Num;
-use crate::{Args, OpError, Operation, Outputs, Type, port, result};
+use crate::{Args, OpError, Operation, Outputs, Type, opt, port, result};
 
 /// Structural equality where numbers compare by value (`1 == 1.0`).
 pub(crate) fn equal_values(a: &Value, b: &Value) -> bool {
@@ -50,12 +50,15 @@ fn less_than(a: &Args) -> Result<Outputs, OpError> {
     result(Value::Bool(compare(a).is_lt()))
 }
 
+/// The condition inputs of And / Or: `a`, `b` and the optional `c`-`f`.
+const CONDITIONS: [&str; 6] = ["a", "b", "c", "d", "e", "f"];
+
 fn and(a: &Args) -> Result<Outputs, OpError> {
-    result(Value::Bool(a.boolean("a") && a.boolean("b")))
+    result(Value::Bool(CONDITIONS.iter().all(|c| a.boolean(c))))
 }
 
 fn or(a: &Args) -> Result<Outputs, OpError> {
-    result(Value::Bool(a.boolean("a") || a.boolean("b")))
+    result(Value::Bool(CONDITIONS.iter().any(|c| a.boolean(c))))
 }
 
 fn not(a: &Args) -> Result<Outputs, OpError> {
@@ -69,6 +72,24 @@ const NUM_B: crate::Port = port("b", Type::Number, "Second number");
 const BOOL_A: crate::Port = port("a", Type::Boolean, "First condition");
 const BOOL_B: crate::Port = port("b", Type::Boolean, "Second condition");
 const OUT: crate::Port = port("result", Type::Boolean, "True or false");
+/// And: extra conditions default to true, so leaving them empty changes nothing.
+const AND_INPUTS: &[crate::Port] = &[
+    BOOL_A,
+    BOOL_B,
+    opt("c", Type::Boolean, "true", "More conditions (optional)"),
+    opt("d", Type::Boolean, "true", "Optional"),
+    opt("e", Type::Boolean, "true", "Optional"),
+    opt("f", Type::Boolean, "true", "Optional"),
+];
+/// Or: extra conditions default to false, so leaving them empty changes nothing.
+const OR_INPUTS: &[crate::Port] = &[
+    BOOL_A,
+    BOOL_B,
+    opt("c", Type::Boolean, "false", "More conditions (optional)"),
+    opt("d", Type::Boolean, "false", "Optional"),
+    opt("e", Type::Boolean, "false", "Optional"),
+    opt("f", Type::Boolean, "false", "Optional"),
+];
 
 pub(crate) static OPERATIONS: &[Operation] = &[
     Operation {
@@ -118,10 +139,10 @@ pub(crate) static OPERATIONS: &[Operation] = &[
     Operation {
         id: "std.logic.and",
         name: "And",
-        description: "True when both are true",
+        description: "True when all conditions are true (a, b and up to four more)",
         category: "Logic",
         version: crate::VERSION,
-        inputs: &[BOOL_A, BOOL_B],
+        inputs: AND_INPUTS,
         outputs: &[OUT],
         errors: &[],
         run: and,
@@ -129,10 +150,10 @@ pub(crate) static OPERATIONS: &[Operation] = &[
     Operation {
         id: "std.logic.or",
         name: "Or",
-        description: "True when either is true",
+        description: "True when any condition is true (a, b and up to four more)",
         category: "Logic",
         version: crate::VERSION,
-        inputs: &[BOOL_A, BOOL_B],
+        inputs: OR_INPUTS,
         outputs: &[OUT],
         errors: &[],
         run: or,
@@ -189,6 +210,22 @@ mod tests {
     fn booleans() {
         assert_eq!(res("std.logic.and", json!({"a": true, "b": false})), false);
         assert_eq!(res("std.logic.or", json!({"a": true, "b": false})), true);
+        // Up to six conditions; the extra ones are optional and neutral.
+        assert_eq!(res("std.logic.or", json!({"a": false, "b": false})), false);
+        assert_eq!(
+            res("std.logic.or", json!({"a": false, "b": false, "c": true})),
+            true
+        );
+        assert_eq!(
+            res("std.logic.or", json!({"a": false, "b": false, "f": true})),
+            true
+        );
+        assert_eq!(res("std.logic.and", json!({"a": true, "b": true})), true);
+        assert_eq!(
+            res("std.logic.and", json!({"a": true, "b": true, "d": false})),
+            false
+        );
+        assert_eq!(code("std.logic.or", json!({"a": true})), "missing_input");
         assert_eq!(res("std.logic.not", json!({"value": false})), true);
         assert_eq!(
             code("std.logic.not", json!({"value": "false"})),

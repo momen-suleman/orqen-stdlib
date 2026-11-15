@@ -1,6 +1,6 @@
 [package]
 name = "orqen-stdlib"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Orqen standard library: deterministic, typed atomic operations (text, numbers, logic, collections, objects, types, errors) and the first published micro-workflows"
 license = "MIT"

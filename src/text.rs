@@ -92,6 +92,39 @@ fn contains(a: &Args) -> Result<Outputs, OpError> {
     result(Value::Bool(found))
 }
 
+fn contains_any(a: &Args) -> Result<Outputs, OpError> {
+    let sensitive = a.boolean("case_sensitive");
+    let fold = |s: &str| {
+        if sensitive {
+            s.to_owned()
+        } else {
+            s.to_lowercase()
+        }
+    };
+    let text = fold(a.text("text"));
+    let mut matched = Vec::new();
+    for (i, item) in a.list("values").iter().enumerate() {
+        let Some(value) = item.as_str() else {
+            return Err(OpError::new(
+                "invalid_type",
+                format!("Item {i} of 'values' must be text"),
+            ));
+        };
+        if value.is_empty() {
+            return Err(OpError::new(
+                "invalid_input",
+                format!("Item {i} of 'values' is empty"),
+            ));
+        }
+        if text.contains(&fold(value)) {
+            matched.push(Value::String(value.to_owned()));
+        }
+    }
+    let mut out = crate::one("result", Value::Bool(!matched.is_empty()));
+    out.insert("matched".to_owned(), Value::Array(matched));
+    Ok(out)
+}
+
 fn length(a: &Args) -> Result<Outputs, OpError> {
     result(Value::from(a.text("text").chars().count() as i64))
 }
@@ -255,6 +288,28 @@ pub(crate) static OPERATIONS: &[Operation] = &[
         run: contains,
     },
     Operation {
+        id: "std.text.contains_any",
+        name: "Contains any",
+        description: "Whether text contains any of a list of values, and which ones",
+        category: "Text",
+        version: crate::VERSION,
+        inputs: &[
+            TEXT_IN,
+            port(
+                "values",
+                Type::List,
+                "Text values to look for, e.g. [\"invoice\", \"billing\"]",
+            ),
+            opt("case_sensitive", Type::Boolean, "true", "Match letter case"),
+        ],
+        outputs: &[
+            port("result", Type::Boolean, "True when at least one is found"),
+            port("matched", Type::List, "The values found, in list order"),
+        ],
+        errors: &["invalid_input"],
+        run: contains_any,
+    },
+    Operation {
         id: "std.text.length",
         name: "Length",
         description: "Number of characters (Unicode scalar values)",
@@ -390,6 +445,44 @@ mod tests {
             true
         );
         assert_eq!(res("std.text.length", json!({"text": "héllo👋"})), 6);
+    }
+
+    #[test]
+    fn contains_any() {
+        let out = crate::run(
+            "std.text.contains_any",
+            json!({"text": "Please resend the Invoice", "values": ["invoice", "billing", "resend"], "case_sensitive": false}),
+        )
+        .unwrap();
+        assert_eq!(out["result"], true);
+        assert_eq!(out["matched"], json!(["invoice", "resend"]));
+        let none = crate::run(
+            "std.text.contains_any",
+            json!({"text": "Lunch on Friday?", "values": ["invoice"]}),
+        )
+        .unwrap();
+        assert_eq!(
+            (none["result"].clone(), none["matched"].clone()),
+            (json!(false), json!([]))
+        );
+        assert_eq!(
+            res(
+                "std.text.contains_any",
+                json!({"text": "Invoice", "values": ["invoice"]})
+            ),
+            false
+        );
+        assert_eq!(
+            code("std.text.contains_any", json!({"text": "a", "values": [1]})),
+            "invalid_type"
+        );
+        assert_eq!(
+            code(
+                "std.text.contains_any",
+                json!({"text": "a", "values": [""]})
+            ),
+            "invalid_input"
+        );
     }
 
     #[test]
