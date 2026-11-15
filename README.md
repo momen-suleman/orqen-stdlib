@@ -9,7 +9,7 @@ std.text.*        trim, lowercase, uppercase, split, join, replace, contains, co
                   normalize_unicode, normalize_line_endings, collapse_whitespace
 std.number.*      sum, add, subtract, multiply, divide, round
 std.logic.*       equal, not_equal, greater_than, less_than, and, or, not, choose
-std.collection.*  get, max, sort, count, append, slice
+std.collection.*  get, max, sort, contains, count, append, slice
 std.object.*      get, keys, values, from_lists, set
 std.type.*        to_number, to_text, validate
 std.error.raise

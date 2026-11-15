@@ -110,6 +110,16 @@ fn get(a: &Args) -> Result<Outputs, OpError> {
     }
 }
 
+/// Whether the list holds the item (numbers by value, lists and objects deeply).
+fn contains(a: &Args) -> Result<Outputs, OpError> {
+    let item = a.any("item");
+    result(Value::Bool(
+        a.list("list")
+            .iter()
+            .any(|v| crate::logic::equal_values(v, item)),
+    ))
+}
+
 fn count(a: &Args) -> Result<Outputs, OpError> {
     result(Value::from(a.list("list").len() as i64))
 }
@@ -285,6 +295,17 @@ pub(crate) static OPERATIONS: &[Operation] = &[
         outputs: &[port("result", Type::List, "The sorted list")],
         errors: &["invalid_type"],
         run: sort,
+    },
+    Operation {
+        id: "std.collection.contains",
+        name: "Contains",
+        description: "Whether a list holds an item (numbers by value, lists and objects deeply)",
+        category: "Collections",
+        version: crate::VERSION,
+        inputs: &[LIST, port("item", Type::Any, "The item to look for")],
+        outputs: &[port("result", Type::Boolean, "True when found")],
+        errors: &[],
+        run: contains,
     },
     Operation {
         id: "std.collection.count",
@@ -480,6 +501,21 @@ mod tests {
             "z"
         );
         assert_eq!(res("std.collection.count", json!({"list": l})), 3);
+        assert_eq!(
+            res("std.collection.contains", json!({"list": l, "item": "b"})),
+            true
+        );
+        assert_eq!(
+            res("std.collection.contains", json!({"list": l, "item": "B"})),
+            false
+        );
+        assert_eq!(
+            res(
+                "std.collection.contains",
+                json!({"list": [1, 2.0], "item": 2})
+            ),
+            true
+        );
         assert_eq!(
             res("std.collection.append", json!({"list": l, "item": 1})),
             json!(["a", "b", "c", 1])

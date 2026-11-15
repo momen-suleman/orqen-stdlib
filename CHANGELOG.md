@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.0
+
+- `std.collection.contains`: whether a list holds an item (numbers by
+  value, lists and objects deeply, text case-sensitive).
+
 ## 0.7.0
 
 - `std.collection.max` takes an optional `default`: an empty list then gives
