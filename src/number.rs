@@ -137,11 +137,49 @@ fn round(a: &Args) -> Result<Outputs, OpError> {
     result(value.to_json()?)
 }
 
+/// Sum of a list of numbers: exact while every value is an integer.
+fn sum(a: &Args) -> Result<Outputs, OpError> {
+    let mut total = Num::Int(0);
+    for (i, item) in a.list("values").iter().enumerate() {
+        let n = Num::from_json(item).ok_or_else(|| {
+            OpError::new(
+                "invalid_type",
+                format!(
+                    "Item {i} of 'values' is not a number: {}",
+                    crate::truncate_json(item)
+                ),
+            )
+        })?;
+        total = match (total, n) {
+            (Num::Int(x), Num::Int(y)) => Num::Int(x.checked_add(y).ok_or_else(overflow)?),
+            (x, y) => {
+                let f = x.as_f64() + y.as_f64();
+                if !f.is_finite() {
+                    return Err(overflow());
+                }
+                Num::Dec(f)
+            }
+        };
+    }
+    result(total.to_json()?)
+}
+
 const A: crate::Port = port("a", Type::Number, "First operand");
 const B: crate::Port = port("b", Type::Number, "Second operand");
 const OUT: crate::Port = port("result", Type::Number, "The result");
 
 pub(crate) static OPERATIONS: &[Operation] = &[
+    Operation {
+        id: "std.number.sum",
+        name: "Sum",
+        description: "Add up a list of numbers (exact for integers; an empty list is 0)",
+        category: "Numbers",
+        version: crate::VERSION,
+        inputs: &[port("values", Type::List, "Numbers to add up")],
+        outputs: &[OUT],
+        errors: &["overflow"],
+        run: sum,
+    },
     Operation {
         id: "std.number.add",
         name: "Add",
@@ -254,6 +292,26 @@ mod tests {
         assert_eq!(
             code("std.number.divide", json!({"a": i64::MIN, "b": -1})),
             "overflow"
+        );
+    }
+
+    #[test]
+    fn sums() {
+        assert_eq!(res("std.number.sum", json!({"values": [5, 3, 2]})), 10);
+        assert_eq!(res("std.number.sum", json!({"values": []})), 0);
+        assert_eq!(res("std.number.sum", json!({"values": [0.5, 2]})), 2.5);
+        assert_eq!(res("std.number.sum", json!({"values": [0.25, 0.75]})), 1);
+        assert_eq!(
+            code("std.number.sum", json!({"values": [1, "2"]})),
+            "invalid_type"
+        );
+        assert_eq!(
+            code("std.number.sum", json!({"values": [i64::MAX, 1]})),
+            "overflow"
+        );
+        assert_eq!(
+            code("std.number.sum", json!({"values": "1,2"})),
+            "invalid_type"
         );
     }
 

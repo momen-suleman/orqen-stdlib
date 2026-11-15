@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0
+
+- `std.number.sum`: add up a list of numbers; exact for integers (overflow
+  is an error), an empty list is 0, a non-number item is `invalid_type`.
+
 ## 0.2.0
 
 - `std.text.contains_any`: whether text contains any of a list of values

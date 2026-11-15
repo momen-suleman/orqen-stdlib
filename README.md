@@ -7,7 +7,7 @@ built from them.
 ```text
 std.text.*        trim, lowercase, uppercase, split, join, replace, contains, contains_any, length,
                   normalize_unicode, normalize_line_endings, collapse_whitespace
-std.number.*      add, subtract, multiply, divide, round
+std.number.*      sum, add, subtract, multiply, divide, round
 std.logic.*       equal, not_equal, greater_than, less_than, and, or, not
 std.collection.*  get, count, append, slice
 std.object.*      get, keys, set
